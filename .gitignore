@@ -1,0 +1,15 @@
+# Ambiente virtual — recriar com: pip install -r requirements.txt
+venv/
+__pycache__/
+*.pyc
+
+# Build do PyInstaller — gerar com:
+# venv\Scripts\python.exe -m PyInstaller GeniusPeach.spec --noconfirm --clean
+build/
+dist/
+
+# Config local (nunca commitar segredos, mesmo quando hoje é só localhost)
+.env
+
+# Configuração local da máquina (Claude Code)
+.claude/settings.local.json

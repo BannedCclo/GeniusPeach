@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>GeniusPeach — Painel</title>
+
+<!-- Fontes locais (o app roda offline; nada de CDN do Google Fonts).
+     Caminho relativo a ui/web/ — o .spec preserva essa mesma estrutura
+     dentro de _internal/, então vale tanto no dev quanto no empacotado. -->
+<style>
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('../../assets/HankenGrotesk-Regular.ttf') format('truetype');
+    font-weight: 400; font-display: block;
+  }
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('../../assets/HankenGrotesk-Medium.ttf') format('truetype');
+    font-weight: 500; font-display: block;
+  }
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('../../assets/HankenGrotesk-SemiBold.ttf') format('truetype');
+    font-weight: 600; font-display: block;
+  }
+  @font-face {
+    font-family: 'Hanken Grotesk';
+    src: url('../../assets/HankenGrotesk-Bold.ttf') format('truetype');
+    font-weight: 700; font-display: block;
+  }
+  @font-face {
+    font-family: 'Material Symbols Outlined';
+    src: url('../../assets/MaterialSymbolsOutlined.ttf') format('truetype');
+    font-weight: 100 700; font-display: block;
+  }
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal; font-style: normal; font-size: 24px;
+    line-height: 1; letter-spacing: normal; text-transform: none;
+    display: inline-block; white-space: nowrap; word-wrap: normal;
+    direction: ltr; -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+</style>
+
+<script src="tailwind.js"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary-fixed": "#ffdbca",
+          "on-primary-container": "#794323",
+          "on-primary-fixed-variant": "#6d3919",
+          "surface-container-high": "#e8e8e8",
+          "inverse-surface": "#2f3131",
+          "outline": "#85736b",
+          "primary": "#89502e",
+          "surface-dim": "#dadada",
+          "surface-variant": "#e2e2e2",
+          "on-tertiary-fixed": "#2f1500",
+          "surface-container-low": "#f4f3f3",
+          "tertiary-container": "#ffb476",
+          "on-tertiary-container": "#7c4202",
+          "on-primary": "#ffffff",
+          "secondary": "#74593f",
+          "on-secondary": "#ffffff",
+          "on-surface-variant": "#52443c",
+          "surface": "#f9f9f9",
+          "secondary-container": "#fed9b8",
+          "tertiary-fixed-dim": "#ffb77d",
+          "surface-bright": "#f9f9f9",
+          "secondary-fixed": "#ffdcbe",
+          "surface-tint": "#89502e",
+          "on-secondary-fixed": "#2a1704",
+          "on-tertiary-fixed-variant": "#6e3900",
+          "tertiary-fixed": "#ffdcc3",
+          "tertiary": "#8d4f11",
+          "error-container": "#ffdad6",
+          "inverse-on-surface": "#f1f1f1",
+          "primary-container": "#ffb38a",
+          "surface-container-highest": "#e2e2e2",
+          "on-surface": "#1a1c1c",
+          "on-secondary-container": "#795d43",
+          "on-error": "#ffffff",
+          "on-tertiary": "#ffffff",
+          "error": "#ba1a1a",
+          "background": "#f9f9f9",
+          "surface-container-lowest": "#ffffff",
+          "inverse-primary": "#ffb68f",
+          "primary-fixed-dim": "#ffb68f",
+          "outline-variant": "#d7c2b9",
+          "on-background": "#1a1c1c",
+          "on-primary-fixed": "#331200",
+          "on-secondary-fixed-variant": "#5a422a",
+          "on-error-container": "#93000a",
+          "secondary-fixed-dim": "#e3c0a0",
+          "surface-container": "#eeeeee"
+        },
+        "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+        "spacing": { "xl": "80px", "sm": "12px", "xs": "4px", "lg": "48px", "md": "24px", "gutter": "24px", "margin": "32px", "base": "8px" },
+        "fontFamily": {
+          "headline-lg": ["Hanken Grotesk"], "body-md": ["Hanken Grotesk"],
+          "body-lg": ["Hanken Grotesk"], "headline-md": ["Hanken Grotesk"],
+          "label-md": ["Hanken Grotesk"], "display": ["Hanken Grotesk"],
+          "headline-lg-mobile": ["Hanken Grotesk"], "label-sm": ["Hanken Grotesk"]
+        },
+        "fontSize": {
+          "headline-lg": ["32px", { "lineHeight": "40px", "fontWeight": "600" }],
+          "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+          "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+          "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+          "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+          "display": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+          "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+          "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "600" }]
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  body { background-color: #f9f9f9; font-family: 'Hanken Grotesk', sans-serif; }
+
+  .neu-raised { box-shadow: -8px -8px 16px #FFFFFF, 8px 8px 16px #BEBEBE; }
+  .neu-inset  { box-shadow: inset -4px -4px 8px #FFFFFF, inset 4px 4px 8px #BEBEBE; }
+  .neu-button {
+    box-shadow: -6px -6px 12px #FFFFFF, 6px 6px 12px #BEBEBE;
+    transition: all 0.2s ease-in-out;
+  }
+  .neu-button:active { box-shadow: inset -4px -4px 8px #FFFFFF, inset 4px 4px 8px #BEBEBE; }
+
+  /* Waveform do estúdio (barras grandes do cartão principal) */
+  .wave-bar {
+    width: 8px;
+    background-color: #ffb38a;
+    border-radius: 4px;
+    animation: bounce 1.2s ease-in-out infinite;
+    box-shadow: -2px -2px 4px rgba(255,255,255,0.8), 2px 2px 4px rgba(190,190,190,0.5);
+    height: 16px;
+  }
+  @keyframes bounce { 0%, 100% { height: 16px; } 50% { height: 48px; } }
+  .wave-bar:nth-child(1) { animation-delay: 0.0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.5s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.6s; }
+  .wave-bar:nth-child(8) { animation-delay: 0.7s; }
+  .wave-bar:nth-child(9) { animation-delay: 0.8s; }
+  .wave-bar:nth-child(10) { animation-delay: 0.9s; }
+  .wave-bar:nth-child(11) { animation-delay: 1.0s; }
+  /* Parado: sem animação, altura mínima */
+  .wave-idle .wave-bar { animation: none; height: 16px; opacity: 0.45; }
+
+  .neu-scrollbar::-webkit-scrollbar { width: 12px; }
+  .neu-scrollbar::-webkit-scrollbar-track {
+    background: #eeeeee; border-radius: 8px;
+    box-shadow: inset -2px -2px 4px #FFFFFF, inset 2px 2px 4px #BEBEBE;
+    margin: 8px;
+  }
+  .neu-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #dadada; border-radius: 8px; border: 3px solid #eeeeee;
+  }
+
+  /* O QtWebEngine ainda desenha a seta nativa do <select> por cima da
+     classe utilitária `appearance-none` do Tailwind em alguns temas do
+     Windows — força a remoção para sobrar só o ícone do Material Symbols
+     que cada campo já desenha por conta própria (expand_more ou keyboard). */
+  select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    background-image: none !important;
+  }
+  select::-ms-expand { display: none; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+
+<body class="bg-background text-on-background font-body-md antialiased overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<div class="flex h-screen w-full">
+
+  <!-- ================= SIDEBAR ================= -->
+  <nav class="flex flex-col h-full p-6 border-r border-outline-variant/20 bg-background w-64 left-0 sticky shadow-[8px_0px_16px_#BEBEBE] z-10 flex-shrink-0">
+    <div class="flex items-center gap-3 mb-8 px-2">
+      <span class="material-symbols-outlined text-primary" style="font-size:28px; font-variation-settings:'FILL' 1;">graphic_eq</span>
+      <span class="font-headline-md text-headline-md text-primary">GeniusPeach</span>
+    </div>
+
+    <div class="flex flex-col gap-4 flex-1">
+      <a class="nav-item" data-view="record" href="#">
+        <span class="material-symbols-outlined">mic</span>
+        <span class="font-label-md text-label-md">Ditado</span>
+      </a>
+      <a class="nav-item" data-view="settings" href="#">
+        <span class="material-symbols-outlined">settings</span>
+        <span class="font-label-md text-label-md">Configurações</span>
+      </a>
+      <a class="nav-item" data-view="history" href="#">
+        <span class="material-symbols-outlined">history</span>
+        <span class="font-label-md text-label-md">Histórico</span>
+      </a>
+    </div>
+
+    <div class="flex flex-col gap-2 pt-4 border-t border-outline-variant/30">
+      <div class="px-4 py-2 flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <span id="ollama-dot" class="w-2 h-2 rounded-full bg-outline"></span>
+          <span id="ollama-text" class="font-label-sm text-label-sm text-on-surface-variant">Ollama: verificando…</span>
+        </div>
+        <span id="gpu-text" class="font-label-sm text-label-sm text-on-surface-variant opacity-70 truncate"></span>
+      </div>
+      <a class="text-error hover:bg-surface-container-highest rounded-xl transition-colors flex items-center gap-4 px-4 py-2 cursor-pointer" id="btn-exit">
+        <span class="material-symbols-outlined">power_settings_new</span>
+        <span class="font-label-sm text-label-sm">Encerrar programa</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ================= CONTEÚDO ================= -->
+  <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+    <div class="flex-1 min-h-0 overflow-hidden p-margin flex flex-col items-center justify-center">
+
+      <!-- ---------- VIEW: DITADO ---------- -->
+      <section class="view w-full h-full min-h-0 flex items-center justify-center" data-view="record">
+        <div class="w-full bg-background rounded-[40px] neu-raised p-8 md:p-12 flex flex-col gap-8"
+             style="max-width: 900px; aspect-ratio: 16 / 10; max-height: 100%;">
+
+          <!-- cabeçalho de status -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+              <div class="relative flex h-6 w-6 items-center justify-center" id="live-dot" hidden>
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-80"></span>
+                <span class="relative inline-flex rounded-full h-4 w-4 bg-primary shadow-[inset_-2px_-2px_4px_rgba(0,0,0,0.2),2px_2px_4px_rgba(255,255,255,0.5)]"></span>
+              </div>
+              <div>
+                <h3 class="font-headline-md text-headline-md text-primary flex items-center gap-2" id="rec-title">Pronto</h3>
+                <p class="font-label-md text-label-md text-on-surface-variant" id="rec-subtitle">
+                  Segure a tecla de atalho para ditar
+                </p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="font-label-sm text-label-sm text-on-surface-variant opacity-70" id="rec-hotkey"></p>
+            </div>
+          </div>
+
+          <!-- poço de texto -->
+          <div class="w-full bg-surface-container-low rounded-3xl neu-inset p-8 overflow-y-auto neu-scrollbar relative flex-1">
+            <div class="flex flex-col gap-4 h-full" id="rec-body">
+              <div class="flex flex-col gap-4 h-full items-center justify-center text-center opacity-50" id="rec-empty">
+                <span class="material-symbols-outlined" style="font-size:48px;">mic_none</span>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                  O texto ditado aparece aqui
+                </p>
+              </div>
+              <div class="flex flex-col gap-4" id="rec-content" hidden>
+                <div class="flex items-center gap-2 opacity-60">
+                  <span class="material-symbols-outlined" style="font-size:16px;">schedule</span>
+                  <span class="font-label-sm text-label-sm tabular-nums" id="rec-time">00:00</span>
+                </div>
+                <p class="font-headline-md text-headline-md text-on-surface leading-relaxed" id="rec-text"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- visualizador + controle -->
+          <div class="flex flex-col md:flex-row items-center justify-between gap-8 mt-4">
+            <div class="flex-1 w-full bg-surface-container-low rounded-2xl h-24 neu-inset flex items-center justify-center gap-2 px-8 wave-idle" id="wave">
+              <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+              <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+              <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+              <div class="wave-bar"></div><div class="wave-bar"></div>
+            </div>
+            <div class="flex items-center gap-6 shrink-0">
+              <!-- Único botão de gravação: mic parado -> quadrado gravando.
+                   Nenhum outro glifo passa por aqui em hipótese nenhuma,
+                   mesmo em TRANSCRIBING/OPTIMIZING/DONE/ERROR — quem conta
+                   o que está acontecendo é o título acima, não este ícone. -->
+              <div class="neu-button w-24 h-24 rounded-full bg-background flex items-center justify-center text-primary cursor-pointer" id="mic-well">
+                <span class="material-symbols-outlined" id="mic-glyph"
+                      style="font-size: 48px; color: rgb(255, 179, 138); font-variation-settings: 'FILL' 1;">mic</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- VIEW: CONFIGURAÇÕES ---------- -->
+      <section class="view w-full h-full min-h-0 flex items-center justify-center" data-view="settings" hidden>
+        <!-- Sem aspect-ratio fixo aqui: no mockup o cartão de Configurações
+             era 16/10 de um canvas de 2560px, onde as três linhas cabiam
+             folgadas. Na janela real isso cortaria o "Atalho global", então a
+             altura acompanha o conteúdo. -->
+        <div class="w-full bg-background rounded-[2rem] neu-raised p-8 md:p-12 flex flex-col relative z-10"
+             style="max-width: 900px; max-height: 100%;">
+          <header class="mb-10">
+            <h2 class="font-headline-lg text-headline-lg text-on-background mb-2">Configurações</h2>
+            <p class="font-body-md text-body-md text-on-surface-variant">Gerencie seus modelos de IA e o atalho global.</p>
+          </header>
+
+          <div class="flex-1 min-h-0 space-y-6 overflow-y-auto pr-4 neu-scrollbar">
+            <!-- Whisper -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Modelo Whisper</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Modelo principal de transcrição — maior = mais preciso e mais lento.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <select id="sel-whisper" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"></select>
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+              </div>
+            </div>
+
+            <div class="h-px w-full bg-outline-variant/30"></div>
+
+            <!-- Ollama -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Modelo Ollama</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">LLM local que corrige o texto transcrito.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <select id="sel-ollama" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"></select>
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+              </div>
+            </div>
+
+            <div class="h-px w-full bg-outline-variant/30"></div>
+
+            <!-- Hotkey: campo de captura ao vivo, não é mais um select — o
+                 clique entra em modo "escutando" e cada tecla pressionada
+                 aparece na hora (ver setupHotkeyCapture em app.js). -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Atalho global</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Clique no campo e pressione a tecla ou combinação — segurar grava, duplo clique liga/desliga.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <input id="hotkey-input" type="text" readonly
+                       class="w-full appearance-none bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer text-center tracking-wider" />
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">keyboard</span>
+              </div>
+            </div>
+          </div>
+
+          <footer class="mt-10 flex justify-end items-center gap-6 pt-6 border-t border-outline-variant/30">
+            <span class="font-label-md text-label-md text-on-surface-variant mr-auto" id="settings-status"></span>
+            <button id="btn-cancel" class="px-8 py-3 rounded-xl font-label-md text-label-md text-on-surface-variant hover:text-on-background transition-colors">Cancelar</button>
+            <button id="btn-save" class="px-8 py-3 rounded-xl font-label-md text-label-md text-on-primary bg-primary neu-raised border border-primary-container hover:bg-primary/90 transition-all duration-200">Salvar alterações</button>
+          </footer>
+        </div>
+      </section>
+
+      <!-- ---------- VIEW: HISTÓRICO ---------- -->
+      <section class="view w-full h-full min-h-0 flex items-center justify-center" data-view="history" hidden>
+        <div class="w-full bg-background rounded-[40px] neu-raised p-8 md:p-12 flex flex-col gap-8"
+             style="max-width: 900px; aspect-ratio: 16 / 10; max-height: 100%;">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-headline-md text-headline-md text-primary flex items-center gap-2">Ditados recentes</h3>
+              <p class="font-label-md text-label-md text-on-surface-variant">Últimos 50 ditados desta sessão</p>
+            </div>
+          </div>
+
+          <div class="w-full bg-surface-container-low rounded-3xl neu-inset p-8 overflow-y-auto neu-scrollbar relative flex-1">
+            <table class="w-full text-left border-separate border-spacing-y-3">
+              <thead>
+                <tr class="text-on-surface-variant font-label-md text-label-md">
+                  <th class="px-4 pb-2">Hora</th>
+                  <th class="px-4 pb-2">Texto</th>
+                  <th class="px-4 pb-2">Transcrição</th>
+                  <th class="px-4 pb-2">Otimização</th>
+                </tr>
+              </thead>
+              <tbody class="font-body-md text-body-md" id="history-body">
+                <tr id="history-empty">
+                  <td class="px-4 py-6 text-on-surface-variant opacity-50" colspan="4">Nenhum ditado ainda.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
