@@ -1,5 +1,8 @@
 # Ambiente virtual — recriar com: pip install -r requirements.txt
 venv/
+# Ambiente virtual CPU-only, usado só pra gerar o instalador de distribuição
+# (ver README) — recriar com: pip install -r requirements-cpu.txt pyinstaller
+venv-build-cpu/
 __pycache__/
 *.pyc
 
@@ -7,6 +10,10 @@ __pycache__/
 # venv\Scripts\python.exe -m PyInstaller GeniusPeach.spec --noconfirm --clean
 build/
 dist/
+# Build CPU-only (installer.iss) e saída do Inno Setup — ver README.
+build-cpu/
+dist-cpu/
+installer_output/
 
 # Config local (nunca commitar segredos, mesmo quando hoje é só localhost)
 .env

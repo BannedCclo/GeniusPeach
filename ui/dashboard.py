@@ -28,7 +28,7 @@ STATE_LABELS = {
     State.IDLE: ("Pronto", theme.PRIMARY),
     State.LISTENING: ("Ouvindo…", theme.ON_PRIMARY_CONTAINER),
     State.TRANSCRIBING: ("Transcrevendo…", theme.ON_PRIMARY_CONTAINER),
-    State.OPTIMIZING: ("Corrigindo texto…", theme.SECONDARY),
+    State.OPTIMIZING: ("Processando…", theme.SECONDARY),
     State.DONE: ("Pronto", theme.PRIMARY),
     State.ERROR: ("Erro", theme.ERROR),
 }

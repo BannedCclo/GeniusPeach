@@ -11,7 +11,7 @@ STATE_LABELS = {
     State.LOADING: "Carregando modelos…",
     State.LISTENING: "Ouvindo…",
     State.TRANSCRIBING: "Transcrevendo…",
-    State.OPTIMIZING: "Corrigindo texto…",
+    State.OPTIMIZING: "Processando…",
     State.ERROR: "Erro — veja o painel",
 }
 

@@ -3,7 +3,6 @@ import time
 import ctypes
 from ctypes import wintypes
 
-import torch
 from pynput import keyboard
 from PySide6.QtCore import Qt, QThread, QMetaObject
 from PySide6.QtGui import QFont
@@ -16,11 +15,14 @@ from PySide6.QtWidgets import QApplication
 from audio_recorder import AudioRecorder
 from app_state import AppState, State
 from worker import Worker
+import dictionary as dictionary_store
 import hotkeys
+import profiles as profiles_store
 import settings as settings_store
 from ui import theme
 from ui.fonts import load_fonts
 from ui.overlay import OverlayWidget
+from ui.profile_toast import ProfileToast
 from ui.webdashboard import WebDashboard
 from ui.tray import TrayIcon
 
@@ -70,32 +72,38 @@ def stop_recording():
     if is_pressed:
         is_pressed = False
         recording_mode = None
-        # Despacha o último trecho pendente (se houver) via chunk_callback,
-        # de forma síncrona — ver audio_recorder.py. Não é bloqueante:
-        # todo o áudio já foi transcrito aos poucos, ao vivo, enquanto a
-        # gravação acontecia.
+        # O token da gravação que está terminando — precisa ser lido ANTES
+        # de recorder.stop() (que já despacha o último trecho, se houver,
+        # de forma síncrona via chunk_callback) pra viajar junto com
+        # recording_finished. Worker usa esse número pra saber a quem
+        # pertence cada trecho/finalização — ver app_state.py.
+        token = recorder.session_token
         recorder.stop()
-        app_state.recording_finished.emit()
+        app_state.recording_finished.emit(token)
 
 
 # ---------------------------------------------------------------------------
 # Atalho: hold-to-talk (segurar) e duplo-clique-toggle coexistem sobre a
 # MESMA combinação de teclas, configurável livremente (ver hotkeys.py e a
-# aba Configurações). `held_keys`/`combo_down` rastreiam o estado físico do
-# teclado; `recording_mode`/`last_release_time` decidem se a pressionada
-# atual é um hold normal ou a metade de um duplo-clique.
+# aba Configurações). `held_keys` é COMPARTILHADO entre este atalho e o de
+# ciclar perfis logo abaixo — os dois só observam o mesmo estado físico do
+# teclado, cada um checando sua própria combinação contra ele; não faz
+# sentido duplicar o rastreio de "quais teclas estão fisicamente
+# pressionadas agora" por atalho. `combo_down` rastreia só ESTA combinação
+# (a de ditado); `recording_mode`/`last_release_time` decidem se a
+# pressionada atual é um hold normal ou a metade de um duplo-clique.
 # ---------------------------------------------------------------------------
 
 current_hotkey_ids = []      # carregado das settings, atualizado por on_hotkey_changed
-held_keys = set()            # ids canônicos fisicamente pressionados agora
-combo_down = False           # a combinação INTEIRA está pressionada agora?
+held_keys = set()            # ids canônicos fisicamente pressionados agora (dos DOIS atalhos)
+combo_down = False           # a combinação de DITADO inteira está pressionada agora?
 recording_mode = None        # None | "hold" | "toggle" — só importa enquanto is_pressed é True
 last_release_time = 0.0
 DOUBLE_TAP_WINDOW_S = 0.4
 
 
-def _combo_fully_held():
-    return bool(current_hotkey_ids) and all(k in held_keys for k in current_hotkey_ids)
+def _combo_fully_held(hotkey_ids):
+    return bool(hotkey_ids) and all(k in held_keys for k in hotkey_ids)
 
 
 def _on_hotkey_down():
@@ -134,32 +142,71 @@ def _on_hotkey_up():
     # duplo-clique liga/desliga (ver _on_hotkey_down).
 
 
+# ---------------------------------------------------------------------------
+# Atalho global de CICLAR PERFIS (padrão em hotkeys.DEFAULT_CYCLE_PROFILE_HOTKEY,
+# configurável na tela de Configurações — ver on_cycle_profile_hotkey_changed)
+# — dispara na PRESSIONADA (borda de subida da combinação), sem hold/toggle
+# nenhum, funciona com a tela do painel fechada (mesmo hook global do
+# pynput do atalho de ditado, só observando outra combinação).
+# ---------------------------------------------------------------------------
+
+cycle_profile_hotkey_ids = []  # carregado das settings em main(), atualizado por on_cycle_profile_hotkey_changed
+cycle_combo_down = False
+current_profile_id = None    # carregado das settings, mantido em dia por on_active_profile_changed
+
+
+def _on_cycle_profile_hotkey():
+    global current_profile_id
+    all_profiles = profiles_store.load_profiles()
+    if not all_profiles:
+        return
+    ids = [p["id"] for p in all_profiles]
+    try:
+        idx = ids.index(current_profile_id)
+    except ValueError:
+        idx = -1  # perfil atual não existe mais (excluído por fora) — cai pro primeiro
+    next_profile = all_profiles[(idx + 1) % len(all_profiles)]
+    settings_store.save_settings({"profile_id": next_profile["id"]})
+    app_state.profile_changed.emit(next_profile["prompt"])
+    # current_profile_id só é atualizado de verdade dentro de
+    # on_active_profile_changed (abaixo), que este emit também aciona —
+    # mesmo canal, não importa se a troca veio daqui ou da tela de Perfis.
+    app_state.active_profile_changed.emit(next_profile["id"], next_profile["name"])
+
+
 def on_press(key):
-    global combo_down
+    global combo_down, cycle_combo_down
     try:
         key_id = hotkeys.id_for_pynput_key(key)
         if key_id is None:
             return
-        was_full = _combo_fully_held()
+        was_dictation_full = _combo_fully_held(current_hotkey_ids)
+        was_cycle_full = _combo_fully_held(cycle_profile_hotkey_ids)
         held_keys.add(key_id)
-        if not was_full and _combo_fully_held() and not combo_down:
+        if not was_dictation_full and _combo_fully_held(current_hotkey_ids) and not combo_down:
             combo_down = True
             _on_hotkey_down()
+        if not was_cycle_full and _combo_fully_held(cycle_profile_hotkey_ids) and not cycle_combo_down:
+            cycle_combo_down = True
+            _on_cycle_profile_hotkey()
     except AttributeError:
         pass
 
 
 def on_release(key):
-    global combo_down
+    global combo_down, cycle_combo_down
     try:
         key_id = hotkeys.id_for_pynput_key(key)
         if key_id is None:
             return
-        was_full = _combo_fully_held()
+        was_dictation_full = _combo_fully_held(current_hotkey_ids)
+        was_cycle_full = _combo_fully_held(cycle_profile_hotkey_ids)
         held_keys.discard(key_id)
-        if was_full and not _combo_fully_held() and combo_down:
+        if was_dictation_full and not _combo_fully_held(current_hotkey_ids) and combo_down:
             combo_down = False
             _on_hotkey_up()
+        if was_cycle_full and not _combo_fully_held(cycle_profile_hotkey_ids) and cycle_combo_down:
+            cycle_combo_down = False
     except AttributeError:
         pass
 
@@ -184,7 +231,7 @@ def _make_console_ctrl_handler(app):
 
 
 def main():
-    global recorder, app_state, current_hotkey_ids
+    global recorder, app_state, current_hotkey_ids, cycle_profile_hotkey_ids, current_profile_id
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
@@ -192,16 +239,22 @@ def main():
     load_fonts()
     app.setFont(QFont(theme.FONT_FAMILY, 10))
 
-    gpu_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU (sem CUDA)"
-
     user_settings = settings_store.load_settings()
     current_hotkey_ids = list(user_settings["hotkey"])
+    cycle_profile_hotkey_ids = list(user_settings["cycle_profile_hotkey"])
+    current_profile_id = user_settings["profile_id"]
+    user_profiles = profiles_store.load_profiles()
+    user_dictionary = dictionary_store.load_dictionary()
 
     app_state = AppState()
     recorder = AudioRecorder(
         level_callback=lambda lvl: app_state.audio_level.emit(lvl),
-        chunk_callback=lambda chunk: app_state.audio_chunk_ready.emit(chunk),
+        chunk_callback=lambda chunk, token: app_state.audio_chunk_ready.emit(chunk, token),
     )
+    # Valor inicial direto, sem sinal — mesmo padrão de current_hotkey_ids
+    # logo acima (o Signal input_device_changed só serve pra mudanças AO
+    # VIVO vindas do Bridge depois, não pro boot).
+    recorder.set_device(user_settings["input_device"])
 
     worker_thread = QThread()
     worker = Worker()
@@ -224,17 +277,28 @@ def main():
     app_state.audio_chunk_ready.connect(worker.process_chunk)
     app_state.recording_finished.connect(worker.finish_session)
     app_state.reload_requested.connect(worker.load_models)
+    app_state.profile_changed.connect(worker.set_active_prompt)
+    app_state.dictionary_changed.connect(worker.set_dictionary_prompt)
+    app_state.input_device_changed.connect(recorder.set_device)
+    app_state.output_language_changed.connect(worker.set_output_language)
 
     def exit_app():
         app.quit()
 
     overlay = OverlayWidget(app_state)
+    profile_toast = ProfileToast()
     dashboard = WebDashboard(
         app_state,
-        gpu_name=gpu_name,
         whisper_model=user_settings["whisper_model"],
         ollama_model=user_settings["ollama_model"],
         hotkey_ids=user_settings["hotkey"],
+        cycle_profile_hotkey_ids=user_settings["cycle_profile_hotkey"],
+        device_id=user_settings["device"],
+        profiles=user_profiles,
+        profile_id=user_settings["profile_id"],
+        dictionary=user_dictionary,
+        input_device=user_settings["input_device"],
+        output_language=user_settings["output_language"],
         on_exit=exit_app,
         on_start_recording=start_recording,
         on_stop_recording=stop_recording,
@@ -270,13 +334,52 @@ def main():
 
     app_state.hotkey_changed.connect(on_hotkey_changed)
 
+    def on_cycle_profile_hotkey_changed(hotkey_ids):
+        global cycle_profile_hotkey_ids, held_keys, combo_down, cycle_combo_down, recording_mode, last_release_time
+        # held_keys é COMPARTILHADO com o atalho de ditado (ver o
+        # comentário grande onde os dois são declarados) — reset defensivo
+        # igual on_hotkey_changed acima, inclusive soltando uma gravação em
+        # andamento: sem isso, ela podia ficar travada sem nenhuma tecla
+        # física capaz de fechá-la depois do reset de held_keys.
+        if recording_mode is not None:
+            stop_recording()
+        cycle_profile_hotkey_ids = list(hotkey_ids)
+        held_keys = set()
+        combo_down = False
+        cycle_combo_down = False
+        recording_mode = None
+        last_release_time = 0.0
+        print(f"[GeniusPeach] Atalho de ciclar perfis alterado para: {hotkeys.label_for(cycle_profile_hotkey_ids)}")
+
+    app_state.cycle_profile_hotkey_changed.connect(on_cycle_profile_hotkey_changed)
+
+    def on_active_profile_changed(profile_id, profile_name):
+        # Único handler pra QUALQUER origem da troca (atalho global de
+        # ciclar OU a tela de Perfis, ver app_state.active_profile_changed)
+        # — mantém current_profile_id em dia pro PRÓXIMO ciclo (senão
+        # ciclar depois de trocar pela tela de Perfis recomeçaria do perfil
+        # errado) e mostra o node flutuante nos dois casos.
+        global current_profile_id
+        current_profile_id = profile_id
+        profile_toast.show_profile(profile_name)
+
+    app_state.active_profile_changed.connect(on_active_profile_changed)
+
     listener = keyboard.Listener(on_press=on_press, on_release=on_release)
     listener.start()
 
     ctrl_handler = _make_console_ctrl_handler(app)
     kernel32.SetConsoleCtrlHandler(ctrl_handler, True)
 
-    app_state.reload_requested.emit(user_settings["whisper_model"], user_settings["ollama_model"])
+    app_state.reload_requested.emit(
+        user_settings["whisper_model"], user_settings["ollama_model"], user_settings["device"]
+    )
+    active_profile = (
+        profiles_store.find(user_profiles, user_settings["profile_id"]) or user_profiles[0]
+    )
+    app_state.profile_changed.emit(active_profile["prompt"])
+    app_state.dictionary_changed.emit(dictionary_store.build_prompt(user_dictionary))
+    app_state.output_language_changed.emit(user_settings["output_language"])
 
     exit_code = app.exec()
 

@@ -1,11 +1,9 @@
 import time
 import numpy as np
-import torch
 from faster_whisper import WhisperModel
+import gpu_devices
 from config import (
     WHISPER_MODEL_SIZE,
-    WHISPER_DEVICE,
-    WHISPER_COMPUTE_TYPE,
     WHISPER_VAD_FILTER,
     WHISPER_VAD_MIN_SILENCE_MS,
     SAMPLE_RATE,
@@ -18,23 +16,38 @@ HALLUCINATIONS = {
 }
 
 class Transcriber:
-    def __init__(self, model_size=None):
+    def __init__(self, model_size=None, device_id=None):
         model_size = model_size or WHISPER_MODEL_SIZE
 
         print("[GeniusPeach] Verificando aceleração de hardware...")
-        if not torch.cuda.is_available():
-            print("[AVISO] CUDA não detectada! O modelo rodará na CPU (latência maior).")
-        else:
-            print(f"[GeniusPeach] GPU ativa: {torch.cuda.get_device_name(0)}")
+        devices = gpu_devices.list_devices()
+        device = gpu_devices.resolve(device_id, devices) if device_id else devices[0]
+        self.device = device
 
-        print(f"[GeniusPeach] Carregando modelo Whisper '{model_size}' na VRAM...")
-        self.model = WhisperModel(
-            model_size,
-            device=WHISPER_DEVICE,
-            compute_type=WHISPER_COMPUTE_TYPE
-        )
+        if device["kind"] == "cuda":
+            print(f"[GeniusPeach] GPU ativa: {device['label']}")
+        else:
+            print("[GeniusPeach] Sem GPU dedicada disponível — rodando na CPU (latência maior).")
+
+        kwargs = {
+            "device": device["kind"],
+            "compute_type": gpu_devices.compute_type_for(device["kind"]),
+        }
+        if device["device_index"] is not None:
+            kwargs["device_index"] = device["device_index"]
+
+        print(f"[GeniusPeach] Carregando modelo Whisper '{model_size}' ({device['label']})...")
+        self.model = WhisperModel(model_size, **kwargs)
+        # Viés de vocabulário (ver dictionary.py) — None até o Worker
+        # reaplicar o dicionário atual logo depois de criar este objeto
+        # (ver worker.load_models), já que um Transcriber novo nunca lembra
+        # do que o anterior tinha.
+        self.initial_prompt = None
         self._warmup()
         print("[GeniusPeach] Whisper carregado e pronto.")
+
+    def set_initial_prompt(self, prompt):
+        self.initial_prompt = prompt
 
     def _warmup(self):
         # Primeira inferência da sessão paga um custo fixo de inicialização
@@ -52,7 +65,13 @@ class Transcriber:
 
         start = time.perf_counter()
 
-        # no_speech_threshold=0.6 instrui o Whisper a descartar áudio com alta probabilidade de ser silêncio
+        # no_speech_threshold: acima disso, o Whisper decide que o trecho
+        # inteiro "não tem fala" e não emite NADA pra ele — silencioso, sem
+        # erro. 0.4 (não 0.6) de propósito: cada chamada aqui já recebe um
+        # trecho que o detector de pausa por RMS (audio_recorder.py) só
+        # corta depois de confirmar fala de verdade — um limiar alto
+        # some com fala baixa/curta bem no fim de um trecho, virando gaps
+        # na transcrição.
         # vad_filter descarta trechos de silêncio antes de decodificar, então
         # pausas (ex: hesitação enquanto a tecla está pressionada) não custam
         # tempo de inferência.
@@ -60,11 +79,12 @@ class Transcriber:
             audio_data,
             language="pt",
             beam_size=1,
-            no_speech_threshold=0.6,
+            no_speech_threshold=0.4,
             log_prob_threshold=-1.0,
             condition_on_previous_text=False,
             vad_filter=WHISPER_VAD_FILTER,
             vad_parameters=dict(min_silence_duration_ms=WHISPER_VAD_MIN_SILENCE_MS),
+            initial_prompt=self.initial_prompt,
         )
 
         text = " ".join([segment.text for segment in segments]).strip()

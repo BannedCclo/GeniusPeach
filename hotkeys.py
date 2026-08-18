@@ -28,6 +28,22 @@ from pynput import keyboard
 
 DEFAULT_HOTKEY = ["alt_l"]
 
+# Valor PADRÃO do atalho global de CICLAR entre os perfis de tratamento
+# (ver main.py, _on_cycle_profile_hotkey) — configurável na tela de
+# Configurações, mesmo campo de captura ao vivo do atalho de ditado (ver
+# cycleHotkeyCapture em ui/web/app.js).
+#
+# Ctrl+Shift+P, não Ctrl+Alt+P: DEFAULT_HOTKEY acima é só "alt_l" sozinho —
+# qualquer combinação de ciclar que INCLUA alt_l dispararia o ditado
+# (hold-to-talk) no instante em que só o Alt fosse pressionado, antes do
+# resto da combinação completar (main._combo_fully_held checa cada atalho
+# de forma independente contra o MESMO estado físico do teclado — um
+# atalho sendo subconjunto do outro sempre dispara os dois). Ctrl+Shift+P
+# evita esse bug real trocando por uma colisão bem mais branda: é também a
+# Paleta de Comandos do VS Code, que só abriria junto — visível e
+# inofensivo, ao contrário de iniciar uma gravação sem querer.
+DEFAULT_CYCLE_PROFILE_HOTKEY = ["ctrl_l", "shift", "vk80"]
+
 # Ordem de exibição: modificadores antes da tecla principal, sempre no
 # mesmo lugar não importa a ordem em que o usuário apertou ao capturar.
 _MODIFIER_PRIORITY = {

@@ -133,29 +133,38 @@
   }
   .neu-button:active { box-shadow: inset -4px -4px 8px #FFFFFF, inset 4px 4px 8px #BEBEBE; }
 
-  /* Waveform do estúdio (barras grandes do cartão principal) */
+  /* Hover só do botão de mic/parar (Ditado) — usa o id de propósito, não a
+     classe .neu-button, pra não mudar o hover de outros botões neu-button
+     do app (ex.: "Novo perfil") que ninguém pediu pra mexer. A animação em
+     si (transform/box-shadow) já herda o `transition: all` de .neu-button
+     acima. Cresce um pouco + sombra mais funda (valores de .neu-raised) —
+     convida ao clique tanto parado (mic) quanto gravando (stop). */
+  #mic-well:hover { transform: scale(1.05); box-shadow: -8px -8px 16px #FFFFFF, 8px 8px 16px #BEBEBE; }
+
+  /* Waveform do estúdio (barras grandes do cartão principal). A altura
+     "visual" de cada barra vem direto de uma amostra real do nível do
+     microfone (ver paintWaveBars em app.js) — sem keyframes/animation-delay
+     sintéticos. A altura do BOX fica fixa no máximo; quem representa o
+     nível é transform: scaleY (composta na GPU, sem disparar reflow a cada
+     amostra — animar height/width forçaria layout thrash a cada uma das 11
+     barras, ~12x/s). scaleY encolhe a partir do centro por padrão, e as
+     barras já são centralizadas verticalmente pelo flex do container pai
+     — mesmo efeito visual de "crescer simétrico" de antes, sem o custo. A
+     transição só suaviza o salto ENTRE duas amostras reais consecutivas,
+     não inventa movimento por conta própria. A DURAÇÃO da transição é
+     setada por amostra via JS (ballistics de VU-meter — sobe rápido, desce
+     devagar, ver WAVE_RISE_MS/WAVE_FALL_MS em app.js); o valor abaixo é só
+     o padrão de repouso/fallback. */
   .wave-bar {
     width: 8px;
+    height: 48px; /* = WAVE_MAX_PX em app.js — altura do box, não a visual */
     background-color: #ffb38a;
     border-radius: 4px;
-    animation: bounce 1.2s ease-in-out infinite;
     box-shadow: -2px -2px 4px rgba(255,255,255,0.8), 2px 2px 4px rgba(190,190,190,0.5);
-    height: 16px;
+    transform: scaleY(0.3333); /* 16/48 = WAVE_MIN_PX/WAVE_MAX_PX, estado de repouso */
+    transition: transform 170ms ease-out;
   }
-  @keyframes bounce { 0%, 100% { height: 16px; } 50% { height: 48px; } }
-  .wave-bar:nth-child(1) { animation-delay: 0.0s; }
-  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
-  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
-  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
-  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
-  .wave-bar:nth-child(6) { animation-delay: 0.5s; }
-  .wave-bar:nth-child(7) { animation-delay: 0.6s; }
-  .wave-bar:nth-child(8) { animation-delay: 0.7s; }
-  .wave-bar:nth-child(9) { animation-delay: 0.8s; }
-  .wave-bar:nth-child(10) { animation-delay: 0.9s; }
-  .wave-bar:nth-child(11) { animation-delay: 1.0s; }
-  /* Parado: sem animação, altura mínima */
-  .wave-idle .wave-bar { animation: none; height: 16px; opacity: 0.45; }
+  .wave-idle .wave-bar { transform: scaleY(0.3333); opacity: 0.45; }
 
   .neu-scrollbar::-webkit-scrollbar { width: 12px; }
   .neu-scrollbar::-webkit-scrollbar-track {
@@ -196,6 +205,14 @@
       <a class="nav-item" data-view="record" href="#">
         <span class="material-symbols-outlined">mic</span>
         <span class="font-label-md text-label-md">Ditado</span>
+      </a>
+      <a class="nav-item" data-view="profiles" href="#">
+        <span class="material-symbols-outlined">tune</span>
+        <span class="font-label-md text-label-md">Perfis</span>
+      </a>
+      <a class="nav-item" data-view="dictionary" href="#">
+        <span class="material-symbols-outlined">spellcheck</span>
+        <span class="font-label-md text-label-md">Dicionário</span>
       </a>
       <a class="nav-item" data-view="settings" href="#">
         <span class="material-symbols-outlined">settings</span>
@@ -245,8 +262,13 @@
                 </p>
               </div>
             </div>
-            <div class="text-right">
+            <div class="text-right flex flex-col items-end gap-2">
               <p class="font-label-sm text-label-sm text-on-surface-variant opacity-70" id="rec-hotkey"></p>
+              <div class="relative">
+                <select id="sel-active-profile"
+                        class="max-w-[220px] appearance-none bg-background text-on-background font-label-md text-label-md py-2 pl-3 pr-8 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer text-right overflow-hidden text-ellipsis whitespace-nowrap"></select>
+                <span class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" style="font-size:16px;">expand_more</span>
+              </div>
             </div>
           </div>
 
@@ -291,6 +313,79 @@
         </div>
       </section>
 
+      <!-- ---------- VIEW: PERFIS ---------- -->
+      <section class="view w-full h-full min-h-0 flex items-center justify-center" data-view="profiles" hidden>
+        <!-- Diferente de Configurações (altura só o que o conteúdo pede,
+             com overflow-y-auto se precisar), aqui a caixa de prompt PRECISA
+             de uma altura real pra crescer (flex-1 min-h-0) — sem uma altura
+             própria no cartão, ela herdaria só o tamanho mínimo do
+             navegador (2-3 linhas), pequena demais pra ler o prompt. -->
+        <div class="w-full bg-background rounded-[2rem] neu-raised p-8 md:p-12 flex flex-col relative z-10"
+             style="max-width: 900px; height: 660px; max-height: 100%;">
+          <header class="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h2 class="font-headline-lg text-headline-lg text-on-background mb-2">Perfis</h2>
+              <p class="font-body-md text-body-md text-on-surface-variant">Cada perfil tem seu próprio prompt — instruções que o Ollama segue para corrigir o texto ditado.</p>
+            </div>
+            <button id="btn-profile-new" class="neu-button px-6 py-3 rounded-xl font-label-md text-label-md text-primary flex items-center gap-2 shrink-0">
+              <span class="material-symbols-outlined" style="font-size:18px;">add</span>
+              Novo perfil
+            </button>
+          </header>
+
+          <div class="flex-1 min-h-0 flex flex-col md:flex-row gap-6">
+            <!-- lista de perfis -->
+            <div class="w-full md:w-56 shrink-0 flex flex-col gap-2 overflow-y-auto neu-scrollbar pr-2" id="profile-list"></div>
+
+            <!-- formulário de criação/edição -->
+            <div class="flex-1 min-h-0 bg-surface-container-low rounded-3xl neu-inset p-6 flex flex-col gap-4">
+              <div>
+                <label class="font-label-md text-label-md text-on-surface-variant block mb-1">Nome do perfil</label>
+                <input id="profile-name" type="text" placeholder="Ex.: E-mails formais"
+                       class="w-full bg-background text-on-background font-body-md text-body-md p-3 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container disabled:opacity-60 disabled:cursor-not-allowed" />
+              </div>
+              <div class="flex-1 min-h-0 flex flex-col">
+                <label class="font-label-md text-label-md text-on-surface-variant block mb-1">Prompt (instruções para o Ollama)</label>
+                <textarea id="profile-prompt" placeholder="Descreva como o texto ditado deve ser corrigido/reescrito…"
+                          class="w-full flex-1 min-h-0 bg-background text-on-background font-body-md text-body-md p-3 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container resize-none disabled:opacity-60 disabled:cursor-not-allowed"></textarea>
+              </div>
+              <div class="flex items-center justify-between gap-4 pt-2 border-t border-outline-variant/30">
+                <span class="font-label-md text-label-md text-on-surface-variant" id="profiles-status"></span>
+                <div class="flex items-center gap-3">
+                  <button id="btn-profile-delete" class="px-6 py-3 rounded-xl font-label-md text-label-md text-error hover:bg-error/10 transition-colors" hidden>Excluir</button>
+                  <button id="btn-profile-save" class="px-8 py-3 rounded-xl font-label-md text-label-md text-on-primary bg-primary neu-raised border border-primary-container hover:bg-primary/90 transition-all duration-200">Salvar perfil</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- VIEW: DICIONÁRIO ---------- -->
+      <section class="view w-full h-full min-h-0 flex items-center justify-center" data-view="dictionary" hidden>
+        <div class="w-full bg-background rounded-[2rem] neu-raised p-8 md:p-12 flex flex-col relative z-10"
+             style="max-width: 900px; height: 660px; max-height: 100%;">
+          <header class="mb-6">
+            <h2 class="font-headline-lg text-headline-lg text-on-background mb-2">Dicionário</h2>
+            <p class="font-body-md text-body-md text-on-surface-variant">Palavras e expressões que você fala com frequência — usadas pra enviesar o Whisper a favor desse vocabulário (sem retreinar nada).</p>
+          </header>
+
+          <div class="flex items-center gap-3 mb-6">
+            <input id="dictionary-input" type="text" placeholder="Ex.: Xiaopao, GeniusPeach…"
+                   class="flex-1 bg-background text-on-background font-body-md text-body-md p-3 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container" />
+            <button id="btn-dictionary-add" class="neu-button px-6 py-3 rounded-xl font-label-md text-label-md text-primary flex items-center gap-2 shrink-0">
+              <span class="material-symbols-outlined" style="font-size:18px;">add</span>
+              Adicionar
+            </button>
+          </div>
+
+          <div class="flex-1 min-h-0 bg-surface-container-low rounded-3xl neu-inset p-4 overflow-y-auto neu-scrollbar">
+            <div id="dictionary-list" class="flex flex-wrap content-start gap-2"></div>
+          </div>
+          <span class="font-label-md text-label-md text-on-surface-variant mt-3" id="dictionary-status"></span>
+        </div>
+      </section>
+
       <!-- ---------- VIEW: CONFIGURAÇÕES ---------- -->
       <section class="view w-full h-full min-h-0 flex items-center justify-center" data-view="settings" hidden>
         <!-- Sem aspect-ratio fixo aqui: no mockup o cartão de Configurações
@@ -312,7 +407,23 @@
                 <p class="font-body-md text-body-md text-on-surface-variant">Modelo principal de transcrição — maior = mais preciso e mais lento.</p>
               </div>
               <div class="w-full md:w-64 relative">
-                <select id="sel-whisper" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"></select>
+                <button type="button" id="btn-whisper-model" class="w-full text-left bg-background text-on-background font-body-md text-body-md py-4 pl-4 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap hover:bg-surface-container-low"></button>
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+              </div>
+            </div>
+
+            <!-- Dispositivo: só aparece quando há mais de uma opção de
+                 verdade (GPU + CPU já conta, ou várias GPUs) — ver
+                 onInfo em app.js. Só afeta o Whisper: o Ollama gerencia a
+                 própria GPU/CPU por conta própria. -->
+            <div id="device-divider" class="h-px w-full bg-outline-variant/30" hidden></div>
+            <div id="device-row" class="flex flex-col md:flex-row md:items-center justify-between gap-4" hidden>
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Dispositivo de processamento</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Onde o Whisper roda a transcrição — ordenado pela GPU com mais VRAM.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <select id="sel-device" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md py-4 pl-4 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"></select>
                 <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
               </div>
             </div>
@@ -326,7 +437,7 @@
                 <p class="font-body-md text-body-md text-on-surface-variant">LLM local que corrige o texto transcrito.</p>
               </div>
               <div class="w-full md:w-64 relative">
-                <select id="sel-ollama" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer"></select>
+                <button type="button" id="btn-ollama-model" class="w-full text-left bg-background text-on-background font-body-md text-body-md py-4 pl-4 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap hover:bg-surface-container-low"></button>
                 <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
               </div>
             </div>
@@ -343,9 +454,71 @@
               </div>
               <div class="w-full md:w-64 relative">
                 <input id="hotkey-input" type="text" readonly
-                       class="w-full appearance-none bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer text-center tracking-wider" />
+                       class="w-full appearance-none bg-background text-on-background font-body-md text-body-md py-4 pl-12 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer text-center tracking-wider overflow-hidden text-ellipsis whitespace-nowrap" />
                 <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">keyboard</span>
               </div>
+            </div>
+
+            <div class="h-px w-full bg-outline-variant/30"></div>
+
+            <!-- Mesmo campo de captura ao vivo do atalho de ditado acima,
+                 só que pro atalho de CICLAR PERFIS (main.py) — dispara na
+                 pressionada, sem hold/toggle, funciona com o painel
+                 fechado. -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Atalho para ciclar perfis</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Clique no campo e pressione a combinação — avança pro próximo perfil, funciona mesmo com o painel fechado.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <input id="cycle-hotkey-input" type="text" readonly
+                       class="w-full appearance-none bg-background text-on-background font-body-md text-body-md py-4 pl-12 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer text-center tracking-wider overflow-hidden text-ellipsis whitespace-nowrap" />
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">keyboard</span>
+              </div>
+            </div>
+
+            <div class="h-px w-full bg-outline-variant/30"></div>
+
+            <!-- Microfone: dispositivo de ENTRADA de áudio (ver
+                 audio_devices.py) — diferente do device acima, que é só o
+                 dispositivo de PROCESSAMENTO do Whisper (GPU/CPU). -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Microfone</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Dispositivo de entrada de áudio usado para o ditado.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <select id="sel-input-device" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md py-4 pl-4 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"></select>
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+              </div>
+            </div>
+
+            <div class="h-px w-full bg-outline-variant/30"></div>
+
+            <!-- Idioma de SAÍDA do texto corrigido pelo Ollama — não muda o
+                 idioma em que o Whisper transcreve, só traduz o resultado
+                 final (ver config.output_language_instruction). -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Idioma do texto corrigido</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Idioma de saída da correção feita pelo Ollama, independente do idioma falado.</p>
+              </div>
+              <div class="w-full md:w-64 relative">
+                <select id="sel-output-language" class="w-full appearance-none bg-background text-on-background font-body-md text-body-md py-4 pl-4 pr-12 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container transition-all cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"></select>
+                <span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+              </div>
+            </div>
+
+            <div class="h-px w-full bg-outline-variant/30"></div>
+
+            <!-- Reiniciar dicionário: instantâneo (2 cliques, sem passar
+                 por "Salvar alterações"), diferente dos campos acima. -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div class="flex-1">
+                <label class="font-headline-md text-headline-md text-on-background block mb-1">Reiniciar memória de vocabulário</label>
+                <p class="font-body-md text-body-md text-on-surface-variant">Apaga todas as palavras do Dicionário — a IA volta a não ter viés de vocabulário nenhum.</p>
+              </div>
+              <button id="btn-reset-dictionary" class="px-6 py-3 rounded-xl font-label-md text-label-md text-error hover:bg-error/10 transition-colors shrink-0">Reiniciar dicionário</button>
             </div>
           </div>
 
@@ -369,27 +542,98 @@
           </div>
 
           <div class="w-full bg-surface-container-low rounded-3xl neu-inset p-8 overflow-y-auto neu-scrollbar relative flex-1">
-            <table class="w-full text-left border-separate border-spacing-y-3">
-              <thead>
-                <tr class="text-on-surface-variant font-label-md text-label-md">
-                  <th class="px-4 pb-2">Hora</th>
-                  <th class="px-4 pb-2">Texto</th>
-                  <th class="px-4 pb-2">Transcrição</th>
-                  <th class="px-4 pb-2">Otimização</th>
-                </tr>
-              </thead>
-              <tbody class="font-body-md text-body-md" id="history-body">
-                <tr id="history-empty">
-                  <td class="px-4 py-6 text-on-surface-variant opacity-50" colspan="4">Nenhum ditado ainda.</td>
-                </tr>
-              </tbody>
-            </table>
+            <div id="history-body" class="flex flex-col gap-3">
+              <p id="history-empty" class="text-on-surface-variant opacity-50 text-center py-6">Nenhum ditado ainda.</p>
+            </div>
           </div>
         </div>
       </section>
 
     </div>
   </main>
+</div>
+
+<!-- ---------- MODAL: escolher/baixar/excluir modelo (Whisper/Ollama) ---------- -->
+<div id="model-modal" class="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-6" hidden>
+  <div class="shadow-2xl bg-surface rounded-[2rem] w-full max-w-2xl max-h-[85vh] flex flex-col p-8 gap-4">
+    <header class="flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <h3 id="model-modal-title" class="font-headline-md text-headline-md text-on-background"></h3>
+        <button type="button" id="model-modal-close" class="text-on-surface-variant hover:text-on-background transition-colors">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <!-- Indicador de VRAM real da máquina + legenda do selo vermelho que
+           aparece nos cards abaixo (mesmo ícone dos dois lugares, pra ficar
+           óbvio que é a mesma coisa). Nunca desabilita nada — só avisa. -->
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <span id="model-modal-vram" class="font-label-md text-label-md text-on-surface-variant"></span>
+        <span class="flex items-center gap-1.5 font-label-sm text-label-sm text-error shrink-0">
+          <span class="material-symbols-outlined" style="font-size:16px;">block</span>
+          Pode não caber na VRAM que você tem
+        </span>
+      </div>
+    </header>
+    <div id="model-modal-list" class="flex-1 min-h-0 overflow-y-auto neu-scrollbar space-y-3 pr-2"></div>
+  </div>
+</div>
+
+<!-- ---------- MODAL: ditado expandido (histórico) ---------- -->
+<div id="history-modal" class="fixed inset-0 z-50 bg-on-background/40 backdrop-blur-sm flex items-center justify-center p-6" hidden>
+  <div class="shadow-2xl bg-surface rounded-[2rem] w-full max-w-2xl max-h-[85vh] flex flex-col p-8 gap-4">
+    <header class="flex items-center justify-between gap-4">
+      <div>
+        <h3 id="history-modal-time" class="font-headline-md text-headline-md text-on-background"></h3>
+        <p id="history-modal-durations" class="font-label-sm text-label-sm text-on-surface-variant"></p>
+      </div>
+      <button type="button" id="history-modal-close" class="text-on-surface-variant hover:text-on-background transition-colors shrink-0">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </header>
+    <div class="flex-1 min-h-0 overflow-y-auto neu-scrollbar space-y-5 pr-2">
+      <div id="history-modal-raw-wrap">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <span class="font-label-md text-label-md text-on-surface-variant">Original</span>
+          <div class="flex items-center gap-3">
+            <button type="button" id="history-modal-edit-raw" class="text-on-surface-variant hover:text-primary transition-colors" title="Corrigir texto original">
+              <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+            </button>
+            <button type="button" id="history-modal-copy-raw" class="text-on-surface-variant hover:text-primary transition-colors" title="Copiar texto original">
+              <span class="material-symbols-outlined" style="font-size:18px;">content_copy</span>
+            </button>
+          </div>
+        </div>
+        <p id="history-modal-raw" class="font-body-md text-body-md text-on-surface-variant italic opacity-80 whitespace-pre-wrap neu-inset rounded-xl p-4"></p>
+
+        <div id="history-modal-raw-edit" class="flex flex-col gap-3" hidden>
+          <textarea id="history-modal-raw-textarea"
+            class="w-full bg-background text-on-background font-body-md text-body-md p-4 rounded-xl neu-inset border-none focus:ring-2 focus:ring-primary-container resize-y" style="min-height: 100px;"></textarea>
+          <div class="flex items-center justify-end gap-3">
+            <button type="button" id="history-modal-raw-cancel" class="px-4 py-2 rounded-xl font-label-md text-label-md text-on-surface-variant hover:text-on-background transition-colors">Cancelar</button>
+            <button type="button" id="history-modal-raw-save" class="px-5 py-2 rounded-xl font-label-md text-label-md text-on-primary bg-primary neu-raised border border-primary-container hover:bg-primary/90 transition-all duration-200">Salvar correção</button>
+          </div>
+        </div>
+
+        <div id="history-modal-suggestions" class="mt-3 flex flex-col gap-2" hidden>
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-label-sm text-label-sm text-on-surface-variant">Adicionar ao Dicionário?</span>
+            <button type="button" id="history-modal-suggestions-dismiss" class="font-label-sm text-label-sm text-on-surface-variant hover:text-on-background transition-colors">Dispensar</button>
+          </div>
+          <div id="history-modal-suggestions-list" class="flex flex-wrap gap-2"></div>
+        </div>
+        <p id="history-modal-raw-saved-msg" class="font-label-sm text-label-sm text-primary mt-2" hidden>Correção salva.</p>
+      </div>
+      <div id="history-modal-optimized-wrap">
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <span class="font-label-md text-label-md text-on-surface-variant">Otimizado</span>
+          <button type="button" id="history-modal-copy-text" class="text-on-surface-variant hover:text-primary transition-colors" title="Copiar texto otimizado">
+            <span class="material-symbols-outlined" style="font-size:18px;">content_copy</span>
+          </button>
+        </div>
+        <p id="history-modal-text" class="font-body-md text-body-md text-primary font-bold whitespace-pre-wrap neu-inset rounded-xl p-4"></p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
