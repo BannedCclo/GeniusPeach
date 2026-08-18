@@ -41,11 +41,24 @@ SolidCompression=yes
 WizardStyle=modern
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
+; Múltiplos idiomas: o instalador pergunta logo na abertura (tela de
+; seleção de idioma automática do Inno Setup) — mesmo conjunto de idiomas
+; do seletor "Idioma do texto corrigido" do app (ver
+; config.OUTPUT_LANGUAGE_OPTIONS), por consistência. Português primeiro
+; = idioma padrão se o Windows do usuário não bater com nenhum da lista.
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "french"; MessagesFile: "compiler:Languages\French.isl"
+Name: "german"; MessagesFile: "compiler:Languages\German.isl"
+Name: "italian"; MessagesFile: "compiler:Languages\Italian.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar um ícone na área de trabalho"; GroupDescription: "Ícones adicionais:"
+; {cm:...} = mensagens padrão do próprio Inno Setup, já traduzidas em
+; cada um dos idiomas do [Languages] acima — não precisa manter tradução
+; própria pra esse texto comum.
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 ; dist-cpu\GeniusPeach\ é a saída do PyInstaller (onedir) — todo o
@@ -54,11 +67,11 @@ Source: "dist-cpu\GeniusPeach\*"; DestDir: "{app}"; Flags: ignoreversion recurse
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Abrir {#MyAppName} agora"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
 
 ; Configurações locais do usuário (settings.json, perfis, dicionário, em
 ; %APPDATA%\GeniusPeach) ficam FORA de {app} de propósito e não são

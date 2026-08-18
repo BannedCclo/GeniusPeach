@@ -6,6 +6,13 @@ nenhum servidor) e usa uma LLM local via **Ollama** pra limpar o texto —
 remover vícios de linguagem, corrigir pontuação e gramática — antes de
 colar automaticamente onde o cursor estiver. Tudo roda na sua máquina.
 
+> **Tem uma GPU NVIDIA?** O instalador padrão (`setup.exe`) é CPU-only de
+> propósito, pra caber num download normal. Se você quer transcrição
+> acelerada por GPU, pule direto pra **[Instalação com aceleração por GPU
+> (NVIDIA/CUDA)](#instalação-com-aceleração-por-gpu-nvidiacuda)** — não
+> tem instalador pronto pra isso, mas o passo a passo a partir do
+> código-fonte é simples e não exige baixar o CUDA Toolkit separado.
+
 ## Recursos
 
 - **Ditado global por atalho**: segure a tecla pra gravar (hold-to-talk)
@@ -42,13 +49,14 @@ colar automaticamente onde o cursor estiver. Tudo roda na sua máquina.
   (dá pra trocar o modelo depois, pela tela de Configurações do próprio
   app — qualquer modelo instalado no Ollama aparece lá.)
 
-## Instalação rápida (recomendada para a maioria)
+## Instalação rápida (CPU — recomendada para a maioria)
 
 1. Baixe o instalador na [página de
    Releases](https://github.com/BannedCclo/GeniusPeach/releases/latest)
    (`GeniusPeach-Setup.exe`).
-2. Rode o instalador e siga o assistente (não precisa de privilégios de
-   administrador).
+2. Rode o instalador — ele abre perguntando o idioma (português, inglês,
+   espanhol, francês, alemão ou italiano) e segue sem precisar de
+   privilégios de administrador.
 3. Garanta que o Ollama está rodando (ícone dele na bandeja, ou
    `ollama serve`) e que já baixou o modelo (`ollama pull qwen2.5:3b`).
 4. Abra o GeniusPeach pelo atalho criado — ele fica na bandeja do
@@ -59,14 +67,18 @@ Esse instalador roda em **qualquer PC Windows**, mas a transcrição usa só
 CPU (sem aceleração por GPU) — pra manter o download pequeno o bastante
 pra caber num Release do GitHub. Continua rápido o bastante pro uso do
 dia a dia com os modelos `tiny`/`base`/`small`; modelos maiores
-(`medium`, `large-v3`) ficam mais lentos sem GPU.
+(`medium`, `large-v3`) ficam mais lentos sem GPU. **Tem GPU NVIDIA?** A
+seção abaixo é pra você.
 
 ## Instalação com aceleração por GPU (NVIDIA/CUDA)
 
+> Sem instalador pronto pra esse caminho (o pacote de GPU do PyTorch tem
+> ~5GB, grande demais pra distribuir) — mas rodar a partir do
+> código-fonte é só copiar e colar os comandos abaixo, leva poucos
+> minutos.
+
 Se você tem uma GPU NVIDIA e quer usar modelos maiores/mais precisos do
-Whisper com velocidade de GPU, rode a partir do código-fonte — o pacote
-de GPU do PyTorch é grande demais (~5GB) pra distribuir como instalador
-pronto.
+Whisper com velocidade de GPU, rode a partir do código-fonte.
 
 Pré-requisitos adicionais:
 - [Python 3.13](https://www.python.org/downloads/) (64 bits).
